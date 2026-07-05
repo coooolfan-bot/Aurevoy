@@ -19,6 +19,7 @@
     "regression:m5": "node scripts/m5-regression.mjs",
     "regression:m6": "node scripts/m6-regression.mjs",
     "regression:m7": "node scripts/m7-regression.mjs",
+    "regression:m8": "node scripts/m8-regression.mjs",
     "typecheck": "npm run build:shared && npm run build:web-ui && npm run typecheck --workspaces --if-present",
     "clean": "rimraf \"packages/*/dist\" \"apps/*/dist\"",
     "build:web-ui": "npm run build -w @aurevoy/web-ui",

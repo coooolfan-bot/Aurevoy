@@ -16,7 +16,7 @@ export function getEmbeddingProvider(): EmbeddingProvider | null {
   const provider: EmbeddingProviderType = config.embedding.provider;
   if (provider === 'off') {
     cachedProvider = null;
-    console.info('[embedding] 未配置，向量检索将降级为纯关键词');
+    console.warn('[embedding] 未配置，向量检索将降级为纯关键词');
     return null;
   }
 
@@ -31,7 +31,7 @@ export function getEmbeddingProvider(): EmbeddingProvider | null {
     timeoutMs: config.embedding.timeoutMs,
   });
 
-  console.info(`[embedding] 已加载: ${baseUrl}/${config.embedding.model}`);
+  console.warn(`[embedding] 已加载: ${baseUrl}/${config.embedding.model}`);
   return cachedProvider;
 }
 

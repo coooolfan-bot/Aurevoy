@@ -4,6 +4,9 @@ import { basename, resolve } from 'node:path';
 import Fastify from 'fastify';
 import pino, { type Logger } from 'pino';
 import cors from '@fastify/cors';
+import './tools/builtins.js';
+import './tools/file-basics.js';
+import './tools/new-tools.js';
 import type {
   AgentEvent,
   ApprovalDecisionRequest,
@@ -649,6 +652,7 @@ export async function buildServer(externalLogger?: Logger) {
       source: { origin: 'user', createdAt: now },
       createdAt: now,
       updatedAt: now,
+      embeddingUpdatedAt: null,
     };
     memoryStore.create(entry);
     invalidateMemorySummary();
@@ -737,7 +741,8 @@ export async function buildServer(externalLogger?: Logger) {
       'X-Accel-Buffering': 'no',
     });
 
-    let heartbeat: ReturnType<typeof setInterval>;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    let unsubscribe = (): void => {};
 
     // ---- SSE 批量写入（cork + coalescing） ----
     let sseBuf: string[] = [];
@@ -768,7 +773,7 @@ export async function buildServer(externalLogger?: Logger) {
       if (event.type === 'done' || event.type === 'task_deleted') {
         if (sseBuf.length > 0) sseFlush();
         reply.raw.write(line);
-        clearInterval(heartbeat);
+        if (heartbeat) clearInterval(heartbeat);
         unsubscribe();
         taskEvents.cleanup(id);
         reply.raw.end();
@@ -824,7 +829,7 @@ export async function buildServer(externalLogger?: Logger) {
 
     // 快照发送完毕，排空缓冲区后再订阅实时事件，避免快照与实时事件交叠
     if (sseBuf.length > 0) sseFlush();
-    const unsubscribe = taskEvents.subscribe(id, send);
+    unsubscribe = taskEvents.subscribe(id, send);
 
     // 心跳，避免连接被中间层断开
     heartbeat = setInterval(() => {
@@ -834,7 +839,7 @@ export async function buildServer(externalLogger?: Logger) {
     }, 15000);
 
     req.raw.on('close', () => {
-      clearInterval(heartbeat);
+      if (heartbeat) clearInterval(heartbeat);
       if (sseTimer) clearImmediate(sseTimer);
       sseBuf = [];
       unsubscribe();

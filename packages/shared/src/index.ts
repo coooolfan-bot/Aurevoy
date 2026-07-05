@@ -834,8 +834,8 @@ export interface MemoryEntry {
   howToApply?: string;
   /** P5: 关联的记忆 ID 列表 */
   linkedMemoryIds?: string[];
-  /** M8: 向量索引更新时间（有值表示已向量化，可用于语义搜索） */
-  embeddingUpdatedAt?: string;
+  /** M8: 向量索引更新时间；null 表示尚未向量化或 embedding provider 不可用。 */
+  embeddingUpdatedAt: string | null;
 }
 
 /** Skill: 暴露给前端的 skill 摘要（Agent Skills 标准格式，不含 body）。 */

@@ -426,6 +426,7 @@ toolRegistry.register({
       howToApply,
       createdAt: now,
       updatedAt: now,
+      embeddingUpdatedAt: null,
     };
     memoryStore.create(entry);
     // M8: 后台异步生成向量索引

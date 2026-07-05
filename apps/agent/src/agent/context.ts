@@ -325,7 +325,7 @@ async function contextCollapse(
   }
 
   // 找到活跃窗口边界（保留最近 compactKeepRecentTurns 轮次的 user 消息及其后全部消息）
-  const keepRecent = config.agent.compactKeepRecentTurns;
+  const keepRecent = Math.max(1, Math.min(config.agent.compactKeepRecentTurns, config.agent.recentMessageWindow));
   let recentBoundary = messages.length;
   let userCount = 0;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -344,7 +344,7 @@ async function contextCollapse(
   }
 
   const compressible = messages.slice(firstCompressible, recentBoundary);
-  if (compressible.length <= 3) {
+  if (compressible.length === 0) {
     return { messages, finalTokens: originalTokens };
   }
 
@@ -379,18 +379,23 @@ async function contextCollapse(
     return { messages, finalTokens: originalTokens };
   }
 
-  if (!summaryText.trim() || summaryText.length < 20) {
-    return { messages, finalTokens: originalTokens };
+  if (!summaryText.trim()) {
+    summaryText = buildDeterministicSummary(compressible);
   }
+  summaryText = appendCompressedUserConstraints(summaryText.trim(), compressible);
 
   // 构建新的消息列表：system 前文 + 摘要 + 保留的活跃窗口
   const keptBefore = messages.slice(0, firstCompressible);
   const keptAfter = messages.slice(recentBoundary);
 
+  const summaryRole: Message['role'] =
+    compressible.some((m) => m.role === 'assistant') && !compressible.some((m) => m.role === 'tool')
+      ? 'assistant'
+      : 'system';
   const summaryMessage: Message = {
     id: randomUUID(),
-    role: 'system',
-    content: `[上下文摘要] ${summaryText.trim()}`,
+    role: summaryRole,
+    content: `[上下文压缩] ${summaryText.slice(0, config.agent.compressedMessageCharCap)}`,
     createdAt: new Date().toISOString(),
   };
 
@@ -398,6 +403,27 @@ async function contextCollapse(
   const finalTokens = totalTokens(compactedMessages);
 
   return { messages: compactedMessages, finalTokens };
+}
+
+function buildDeterministicSummary(messages: Message[]): string {
+  const importantUserText = messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+    .join('\n')
+    .slice(0, config.agent.compressedMessageCharCap);
+  const roles = messages.map((message) => message.role).join(',');
+  return `已压缩 ${messages.length} 条历史消息（${roles}）。保留关键用户约束和执行结论：${importantUserText}`;
+}
+
+function appendCompressedUserConstraints(summary: string, messages: Message[]): string {
+  const userText = messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+    .join('\n')
+    .trim();
+  if (!userText) return summary;
+  const preserved = userText.slice(0, Math.max(80, Math.floor(config.agent.compressedMessageCharCap / 2)));
+  return summary.includes(preserved) ? summary : `保留用户约束：${preserved}\n${summary}`;
 }
 
 // ---- 公共入口 ----

@@ -547,7 +547,7 @@ function rowToMemory(row: MemoryRow): MemoryEntry {
     nameSlug: row.name_slug ?? undefined,
     why: row.why ?? undefined,
     howToApply: row.how_to_apply ?? undefined,
-    embeddingUpdatedAt: row.embedding_updated_at ?? undefined,
+    embeddingUpdatedAt: row.embedding_updated_at ?? null,
     // linkedMemoryIds 从 content 中的 [[link]] 动态解析，不持久化独立列
   };
 }
